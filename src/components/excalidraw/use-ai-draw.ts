@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
-import { streamChat, isConfigValid, getAIConfig, type ToolExecutor } from '@/lib/ai'
-import { parseExcalidrawElements } from './element-parser'
+import { isConfigValid, getAIConfig, saveAIConfig } from '@/lib/ai'
+import { executeDrawRun } from '@/lib/agent/run-execution'
+import { loadRuns } from '@/lib/agent/store'
 import type { ExcalidrawWrapperRef, ElementSummary } from './wrapper'
 import type { useChatHistory } from './use-chat-history'
 import { useLocale } from '@/hooks/use-locale'
 import { useToast } from '@/components/ui/toast'
 import { onStorageError } from '@/lib/storage'
+import { useAIConfig } from '@/hooks/use-ai-config'
+import type { AIProvider } from '@/lib/ai-config'
+import type { AIProjectContext } from '@/lib/local-chat'
 
 type ChatHistoryApi = ReturnType<typeof useChatHistory>
 
@@ -13,17 +17,21 @@ interface UseAiDrawOptions {
   excalidrawRef: RefObject<ExcalidrawWrapperRef | null>
   chatHistory: ChatHistoryApi
   selectedElements: ElementSummary[]
+  projectContext?: AIProjectContext
 }
 
 export function useAiDraw({
   excalidrawRef,
   chatHistory,
   selectedElements,
+  projectContext,
 }: UseAiDrawOptions) {
   const { t } = useLocale()
   const { showToast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
+  const config = useAIConfig()
   const abortControllerRef = useRef<AbortController | null>(null)
+  const requestSessionRef = useRef<string | null>(null)
 
   const {
     currentSession,
@@ -33,6 +41,12 @@ export function useAiDraw({
     addMessage,
     updateMessage,
   } = chatHistory
+
+  useEffect(() => {
+    if (requestSessionRef.current && currentSessionId !== requestSessionRef.current) {
+      abortControllerRef.current?.abort()
+    }
+  }, [currentSessionId])
 
   useEffect(() => {
     return onStorageError(() => {
@@ -70,15 +84,29 @@ export function useAiDraw({
     excalidrawRef,
   ])
 
+  useEffect(() => () => abortControllerRef.current?.abort(), [])
+
+  useEffect(() => {
+    void loadRuns(projectContext?.projectId).catch(error => {
+      showToast(error instanceof Error ? error.message : '运行记录读取失败', 3000)
+    })
+  }, [projectContext?.projectId, showToast])
+
+  const setProvider = useCallback((provider: AIProvider) => {
+    if (!saveAIConfig({ ...getAIConfig(), provider })) showToast(t.saveConfigFailed, 3000)
+  }, [showToast, t.saveConfigFailed])
+
   const abort = useCallback(() => {
     abortControllerRef.current?.abort()
   }, [])
 
   const send = useCallback(
-    async (rawInput: string) => {
-      if (!rawInput.trim() || isLoading) return false
+    async (rawInput: string, parentRunId?: string) => {
+      if (!rawInput.trim() || isLoading || abortControllerRef.current) return false
 
-      if (!isConfigValid(getAIConfig())) {
+      const requestConfig = getAIConfig()
+      const requestSelection = excalidrawRef.current?.getSelectedElementsSummary() ?? selectedElements
+      if (!isConfigValid(requestConfig)) {
         showToast(t.configRequiredAlert, 3000)
         return false
       }
@@ -91,85 +119,35 @@ export function useAiDraw({
       if (!sessionId) {
         sessionId = createSession()
         historyBefore = []
+        excalidrawRef.current?.switchToSession(sessionId, true)
       }
+      requestSessionRef.current = sessionId
 
       addMessage(sessionId, 'user', userMessage)
       const assistantMessageId = addMessage(sessionId, 'assistant', '')
 
-      let fullText = ''
-      let processedLength = 0
-      let hasGeneratedElements = false
-      const generatedIds = new Set<string>()
-
-      const toolExecutor: ToolExecutor = {
-        getCanvasElements: () => excalidrawRef.current?.getCanvasState() || [],
-        deleteElements: (ids) =>
-          excalidrawRef.current?.deleteElements(ids) || {
-            deleted: [],
-            notFound: ids,
-          },
-        updateElements: (elements) =>
-          excalidrawRef.current?.updateElements(elements) || {
-            updated: [],
-            notFound: elements.map((e) => e.id),
-          },
-      }
-
       const abortController = new AbortController()
       abortControllerRef.current = abortController
-
       try {
-        await streamChat({
-          userMessage,
-          onChunk: (chunk) => {
-            fullText += chunk
-            updateMessage(sessionId!, assistantMessageId, fullText)
-
-            const { elements, remainingBuffer } = parseExcalidrawElements(
-              fullText,
-              processedLength
-            )
-            if (elements.length > 0) {
-              excalidrawRef.current?.addElements(elements)
-              elements.forEach((el) => generatedIds.add(el.id))
-              processedLength = fullText.length - remainingBuffer.length
-              hasGeneratedElements = true
-            }
+        const canvas = excalidrawRef.current
+        if (!canvas) throw new Error('画布尚未就绪')
+        await executeDrawRun({ conversationId: sessionId, parentRunId, canvas, signal: abortController.signal,
+          request: { userMessage, config: requestConfig, projectContext, onChunk: () => undefined,
+            selectedElements: requestSelection, history: historyBefore.map(m => ({ role: m.role, content: m.content })),
+            canvasBounds: canvas.getCanvasBounds(),
           },
-          onError: (error) => {
-            console.error('Chat error:', error)
-            updateMessage(
-              sessionId!,
-              assistantMessageId,
-              `${t.errorPrefix}${error.message}`
-            )
-            showToast(t.generateFailed, 2000)
-          },
-          selectedElements,
-          toolExecutor,
-          signal: abortController.signal,
-          history: historyBefore.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-          canvasBounds: excalidrawRef.current?.getCanvasBounds() ?? null,
+          onReply: reply => updateMessage(sessionId, assistantMessageId, reply.content, { ...reply, source: requestConfig.provider }),
+          onGenerated: ids => { canvas.scrollToElements([...ids]); showToast(t.elementsGenerated, 2000) },
         })
-
-        if (!abortController.signal.aborted) {
-          const { elements } = parseExcalidrawElements(fullText, processedLength)
-          if (elements.length > 0) {
-            excalidrawRef.current?.addElements(elements)
-            elements.forEach((el) => generatedIds.add(el.id))
-            hasGeneratedElements = true
-          }
-
-          if (hasGeneratedElements) {
-            excalidrawRef.current?.scrollToElements(Array.from(generatedIds))
-            showToast(t.elementsGenerated, 2000)
-          }
-        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '运行失败'
+        updateMessage(sessionId, assistantMessageId, message, { source: requestConfig.provider,
+          activities: [{ type: 'status', level: 'error', message }],
+        })
+        showToast(t.generateFailed, 2000)
       } finally {
         abortControllerRef.current = null
+        requestSessionRef.current = null
         setIsLoading(false)
       }
 
@@ -186,11 +164,14 @@ export function useAiDraw({
       excalidrawRef,
       showToast,
       t,
+      projectContext,
     ]
   )
 
   return {
     isLoading,
+    provider: config.provider,
+    setProvider,
     send,
     abort,
   }

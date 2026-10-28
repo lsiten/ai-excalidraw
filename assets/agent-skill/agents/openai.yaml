@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI Excalidraw 画布协作"
+  short_description: "在本地画布展示方案与结果，结合选区反馈迭代，辅助创建和优化 Skill"
+  default_prompt: "使用 $ai-excalidraw-desktop 读取当前画布，按任务展示方案或结果，结合我的选区和反馈继续迭代。"

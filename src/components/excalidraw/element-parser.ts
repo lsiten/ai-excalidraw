@@ -1,3 +1,5 @@
+import { scanOutputSpans } from './canvas-output-parser'
+
 /**
  * Excalidraw 元素流式解析器
  * 从 AI 返回的流式文本中解析 Excalidraw 元素（纯 JSON 格式）
@@ -125,6 +127,44 @@ export function parseExcalidrawElements(
   return {
     elements,
     remainingBuffer: text.slice(newProcessedLength),
+  }
+}
+
+/** Parse canvas regions and legacy bare output, excluding code and thinking.
+ * remainingBuffer is always an original-text suffix.
+ * Call with the full accumulated text, retaining the caller's original-text offset.
+ */
+export function parseCanvasOutput(text: string, processedLength = 0): ParseResult {
+  const elements: ParsedElement[] = []
+  let consumed = processedLength
+  for (const span of scanOutputSpans(text)) {
+    if ((span.kind !== 'canvas' && span.kind !== 'text') || span.end <= processedLength) continue
+    const start = Math.max(span.start, processedLength)
+    const result = parseExcalidrawElements(text.slice(start, span.end))
+    elements.push(...result.elements)
+    const length = span.end - start - result.remainingBuffer.length
+    if (length > 0) consumed = start + length
+  }
+  return { elements, remainingBuffer: text.slice(consumed) }
+}
+
+/** A closed stream must not report success for truncated or malformed canvas data. */
+export function assertCanvasOutputComplete(text: string) {
+  for (const span of scanOutputSpans(text)) {
+    if (span.kind !== 'canvas') continue
+    const raw = text.slice(span.start, span.end)
+    if (!raw.startsWith('<canvas>') || !raw.endsWith('</canvas>')) throw new Error('画布输出未完整结束，请继续任务补齐结果。')
+    const payload = raw.slice(8, -9)
+    const objects = extractJsonObjects(payload)
+    let consumed = 0
+    for (const object of objects) {
+      const start = object.endIndex - object.json.length
+      if (!/^[\s,[\]]*$/.test(payload.slice(consumed, start))) throw new Error('画布输出包含无效数据。')
+      const parsed: unknown = JSON.parse(object.json)
+      if (!parsed || typeof parsed !== 'object' || !('id' in parsed) || typeof parsed.id !== 'string') throw new Error('画布输出缺少元素编号。')
+      consumed = object.endIndex
+    }
+    if (!/^[\s,[\]]*$/.test(payload.slice(consumed))) throw new Error('画布输出不完整或格式无效。')
   }
 }
 

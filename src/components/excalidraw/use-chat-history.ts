@@ -1,11 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createDebouncedWriter, readStorage } from '@/lib/storage'
+import type { LocalChatActivity, LocalReplyPart } from '@/lib/local-chat'
+import type { AIProvider } from '@/lib/ai-config'
 
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
   timestamp: number
+  thinking?: string
+  activities?: LocalChatActivity[]
+  parts?: LocalReplyPart[]
+  source?: AIProvider
+  runId?: string
 }
 
 export interface ChatSession {
@@ -28,12 +35,12 @@ function generateId(): string {
 /**
  * 对话历史 Hook
  */
-export function useChatHistory() {
+export function useChatHistory(fileHistory?: { readonly initial: ChatSession[]; readonly onChange: (sessions: ChatSession[]) => void }) {
   const [sessions, setSessions] = useState<ChatSession[]>(() =>
-    readStorage<ChatSession[]>(STORAGE_KEY, [])
+    fileHistory?.initial ?? readStorage<ChatSession[]>(STORAGE_KEY, [])
   )
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(() => {
-    const loaded = readStorage<ChatSession[]>(STORAGE_KEY, [])
+    const loaded = fileHistory?.initial ?? readStorage<ChatSession[]>(STORAGE_KEY, [])
     return loaded[0]?.id ?? null
   })
   const writerRef = useRef(createDebouncedWriter(STORAGE_KEY, 500))
@@ -53,8 +60,9 @@ export function useChatHistory() {
   useEffect(() => {
     sessionsRef.current = sessions
     const trimmed = sessions.slice(0, MAX_SESSIONS)
-    writerRef.current.write(trimmed)
-  }, [sessions])
+    if (fileHistory) fileHistory.onChange(trimmed)
+    else writerRef.current.write(trimmed)
+  }, [sessions, fileHistory])
 
   const currentSession = sessions.find((s) => s.id === currentSessionId) || null
 
@@ -112,14 +120,14 @@ export function useChatHistory() {
   )
 
   const updateMessage = useCallback(
-    (sessionId: string, messageId: string, content: string) => {
+    (sessionId: string, messageId: string, content: string, details?: Pick<ChatMessage, 'thinking' | 'activities' | 'source' | 'parts' | 'runId'>) => {
       setSessions((prev) =>
         prev.map((session) => {
           if (session.id !== sessionId) return session
           return {
             ...session,
             messages: session.messages.map((msg) =>
-              msg.id === messageId ? { ...msg, content } : msg
+              msg.id === messageId ? { ...msg, ...details, content } : msg
             ),
             updatedAt: Date.now(),
           }
@@ -159,9 +167,10 @@ export function useChatHistory() {
   }, [])
 
   const flush = useCallback(() => {
-    writerRef.current.write(sessionsRef.current.slice(0, MAX_SESSIONS))
+    if (fileHistory) fileHistory.onChange(sessionsRef.current.slice(0, MAX_SESSIONS))
+    else writerRef.current.write(sessionsRef.current.slice(0, MAX_SESSIONS))
     writerRef.current.flush()
-  }, [])
+  }, [fileHistory])
 
   return {
     sessions,

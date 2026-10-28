@@ -1,0 +1,70 @@
+{
+  "absoluteHomePathRejected": true,
+  "globalReferenceRejectedAfterProjectOverride": true,
+  "instructions": {
+    "content": "---\nname: demo\ndescription: Demo skill\n---\nRead [guide](references/guide.md).",
+    "contentRevision": "sha256:55d26d2f3647deee988b62d8785944b05e0b790c80e151a178f270ba7d794c69",
+    "kind": "file",
+    "path": "global-skill://demo/SKILL.md",
+    "revision": "sha256:55d26d2f3647deee988b62d8785944b05e0b790c80e151a178f270ba7d794c69"
+  },
+  "manifest": {
+    "kind": "manifest",
+    "mcp": [],
+    "memory": [],
+    "policy": {
+      "allow": [],
+      "budgets": {
+        "maxTurns": null,
+        "repairLimit": null,
+        "timeoutMs": null
+      },
+      "deny": []
+    },
+    "provenance": {
+      "fallback": "$HOME/.agents",
+      "mcp": ".agents/mcp.json",
+      "mcpAuthority": "configuration-only; native permissions still required",
+      "policy": null,
+      "resolution": "project-first",
+      "skills": ".agents/skills"
+    },
+    "skills": [
+      {
+        "description": "Demo skill",
+        "files": [
+          {
+            "bytes": 77,
+            "path": "global-skill://demo/SKILL.md",
+            "revision": "sha256:55d26d2f3647deee988b62d8785944b05e0b790c80e151a178f270ba7d794c69"
+          },
+          {
+            "bytes": 21,
+            "path": "global-skill://demo/references/guide.md",
+            "revision": null
+          }
+        ],
+        "name": "demo",
+        "path": "global-skill://demo/SKILL.md",
+        "revision": "sha256:55d26d2f3647deee988b62d8785944b05e0b790c80e151a178f270ba7d794c69",
+        "source": "global"
+      }
+    ],
+    "warnings": []
+  },
+  "projectOverride": {
+    "content": "project override",
+    "contentRevision": "sha256:c1acfd79715aa476f13ab23845dd659f37521321499998bf81a2bbec27ed410c",
+    "kind": "file",
+    "path": ".agents/skills/demo/references/guide.md",
+    "revision": "sha256:c1acfd79715aa476f13ab23845dd659f37521321499998bf81a2bbec27ed410c"
+  },
+  "readPolicyEnforced": true,
+  "resource": {
+    "content": "global dispatch guide",
+    "contentRevision": "sha256:0e2d6d3c8702dad8b95042affec58842eb11fd8ff29e88d3a438586d8b12d4ca",
+    "kind": "file",
+    "path": "global-skill://demo/references/guide.md",
+    "revision": "sha256:0e2d6d3c8702dad8b95042affec58842eb11fd8ff29e88d3a438586d8b12d4ca"
+  }
+}

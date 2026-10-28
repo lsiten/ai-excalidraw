@@ -1,6 +1,7 @@
 /**
  * localStorage 读写封装：防抖写入与配额错误上报
  */
+import { persistDesktopCanvas, removeDesktopCanvas } from './desktop-storage'
 
 export class StorageQuotaError extends Error {
   constructor(message = 'localStorage 配额不足') {
@@ -43,6 +44,7 @@ export function writeStorage(key: string, value: unknown): boolean {
   if (typeof window === 'undefined') return false
   try {
     localStorage.setItem(key, JSON.stringify(value))
+    void persistDesktopCanvas(key, value).catch((error: unknown) => notifyError(error instanceof Error ? error : new Error(String(error))))
     return true
   } catch (error) {
     const err =
@@ -62,6 +64,7 @@ export function removeStorage(key: string): void {
   if (typeof window === 'undefined') return
   try {
     localStorage.removeItem(key)
+    void removeDesktopCanvas(key).catch((error: unknown) => notifyError(error instanceof Error ? error : new Error(String(error))))
   } catch {
     // ignore
   }

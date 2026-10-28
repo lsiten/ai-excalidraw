@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { AIProviderSelect } from './ai-provider-select'
+import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card } from '@/components/ui/card'
@@ -15,9 +16,11 @@ import {
 import type { useChatHistory } from './use-chat-history'
 import type { ExcalidrawWrapperRef, ElementSummary } from './wrapper'
 import type { useAiDraw } from './use-ai-draw'
-import { removeJsonObjects, parseThinkingContent } from '@/lib/message-content'
+import { MessageBubble } from './chat-message'
 import { useLocale } from '@/hooks/use-locale'
 import { cn } from '@/lib/utils'
+import { useChatScroll } from './use-chat-scroll'
+import { continuationPrompt } from '@/lib/agent/context'
 
 type ChatHistoryApi = ReturnType<typeof useChatHistory>
 type AiDrawApi = ReturnType<typeof useAiDraw>
@@ -43,7 +46,6 @@ export function MobileInput({
   const [showHistory, setShowHistory] = useState(false)
   const [showSessions, setShowSessions] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const {
     sessions,
@@ -52,22 +54,16 @@ export function MobileInput({
     createSession,
     switchSession,
   } = chatHistory
-  const { isLoading, send, abort } = aiDraw
-
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [])
-
-  useEffect(() => {
-    if (showHistory) scrollToBottom()
-  }, [currentSession?.messages, showHistory, scrollToBottom])
+  const { isLoading, send, abort, provider, setProvider } = aiDraw
+  const { containerRef, onScroll, scrollToLatest, showLatest } = useChatScroll(currentSession, showHistory)
 
   const handleSend = async () => {
     const value = input
+    if (!value.trim() || isLoading) return
     setInput('')
+    setShowHistory(true)
     const ok = await send(value)
     if (!ok) setInput(value)
-    else setShowHistory(true)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -86,32 +82,13 @@ export function MobileInput({
   return (
     <div className="border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 safe-area-inset-bottom">
       {showHistory && (
-        <div className="max-h-48 overflow-y-auto border-b border-border px-3 py-2 space-y-2">
-          {currentSession?.messages.slice(-8).map((message) => {
-            const isUser = message.role === 'user'
-            const content = isUser
-              ? message.content
-              : removeJsonObjects(parseThinkingContent(message.content).main) ||
-                t.generated
-            return (
-              <div
-                key={message.id}
-                className={cn(
-                  'text-xs rounded-lg px-2.5 py-1.5 max-w-[90%]',
-                  isUser
-                    ? 'ml-auto bg-primary text-primary-foreground'
-                    : 'bg-secondary/50 text-foreground'
-                )}
-              >
-                <div className="whitespace-pre-wrap break-words line-clamp-4">
-                  {content}
-                </div>
-              </div>
-            )
-          })}
-          <div ref={messagesEndRef} />
+        <div ref={containerRef} onScroll={onScroll} className="max-h-48 overflow-y-auto border-b border-border px-3 py-2 space-y-2">
+          {currentSession?.messages.slice(-8).map((message) => (
+            <MessageBubble key={message.id} message={message} isStreaming={isLoading && message.id === currentSession.messages.at(-1)?.id} onContinue={run=>{void send(continuationPrompt(run),run.header.id)}} />
+          ))}
         </div>
       )}
+      {showHistory && showLatest && <Button variant="ghost" size="sm" className="mx-auto flex text-xs" onClick={scrollToLatest}>{t.latestMessage}</Button>}
 
       {showSessions && (
         <div className="max-h-40 overflow-y-auto border-b border-border px-3 py-2 space-y-1">
@@ -185,7 +162,7 @@ export function MobileInput({
           <MessageSquare className="w-3.5 h-3.5 mr-1" />
           {t.newChat}
         </Button>
-        {isLoading && (
+        {isLoading && provider === 'api' && (
           <div className="ml-auto flex items-center gap-1 text-xs text-foreground/50">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
             {t.aiDrawing}
@@ -194,6 +171,7 @@ export function MobileInput({
       </div>
 
       <div className="p-3 pt-2">
+        <div className="mb-2"><AIProviderSelect value={provider} onChange={setProvider} disabled={isLoading} compact /></div>
         <Card className="flex items-end gap-2 p-2 bg-secondary/5 border-border/50">
           <Button
             variant="ghost"
@@ -224,6 +202,7 @@ export function MobileInput({
               if (isLoading) abort()
               else void handleSend()
             }}
+            aria-label={isLoading ? t.stop : t.send}
             disabled={!isLoading && !input.trim()}
             className="shrink-0 w-9 h-9"
           >

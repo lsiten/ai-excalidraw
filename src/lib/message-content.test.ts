@@ -61,3 +61,43 @@ describe('history helpers', () => {
     ])
   })
 })
+
+describe('canvas boundary presentation', () => {
+  const element = '{"id":"box","type":"rectangle","x":1,"y":2}'
+  const example = `\`\`\`markdown\n<canvas>${element}</canvas>\n<think>example</think>\n\`\`\``
+
+  it.each(['<canvas>', '<canvas>{"id":', '<can', `<canvas>${element}</canvas>`])(
+    'hides actual or unfinished canvas output: %s', (region) => {
+      const result = removeJsonObjects(`说明${region}`)
+      expect(result).toBe('说明')
+    },
+  )
+
+  it('preserves fenced Skill JSON and canvas examples in UI and history', () => {
+    const content = `${example}\n\`\`\`json\n${element}\n\`\`\``
+    expect(removeJsonObjects(parseThinkingContent(content).main)).toBe(content)
+    expect(sanitizeAssistantForHistory(content)).toBe(content)
+  })
+
+  it('preserves fenced examples while removing real regions and legacy elements', () => {
+    const content = `${example}\n<canvas>${element}</canvas>完成${element}`
+    const result = sanitizeAssistantForHistory(content)
+    expect(result).toBe(`${example}\n完成`)
+  })
+
+  it('hides incomplete reasoning and extracts adjacent reasoning blocks', () => {
+    const result = parseThinkingContent('正文<think>one</think><think>two</think><think>three')
+    expect(result).toEqual({ main: '正文', thinking: 'onetwothree' })
+  })
+
+  it('preserves tags inside element strings until the whole region is hidden', () => {
+    const content = '正文<canvas>{"id":"t","text":"</canvas><think>data</think>"}</canvas>完成'
+    const result = sanitizeAssistantForHistory(content)
+    expect(result).toBe('正文完成')
+  })
+
+  it('hides fences nested in actual canvas regions', () => {
+    const result = removeJsonObjects(`<canvas>\n${example}\n</canvas>完成`)
+    expect(result).toBe('完成')
+  })
+})

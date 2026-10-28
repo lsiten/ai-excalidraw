@@ -1,8 +1,10 @@
+import { scanOutputSpans } from '../components/excalidraw/canvas-output-parser'
+
 /**
  * 消息内容清洗：剥离思考标签与元素 JSON，供 UI 展示与多轮上下文共用
  */
 
-export function removeJsonObjects(text: string): string {
+function removeLegacyJsonObjects(text: string): string {
   let result = ''
   let i = 0
 
@@ -57,21 +59,28 @@ export function removeJsonObjects(text: string): string {
     }
   }
 
-  return result.replace(/\n{3,}/g, '\n\n').trim()
+  return result
+}
+
+export function removeJsonObjects(text: string): string {
+  return scanOutputSpans(text).map((span) => {
+    if (span.inCanvas || span.kind === 'canvas') return ''
+    const value = text.slice(span.start, span.end)
+    return span.kind === 'text' ? removeLegacyJsonObjects(value) : value
+  }).join('').replace(/\n{3,}/g, '\n\n').trim()
 }
 
 export function parseThinkingContent(content: string): { thinking: string; main: string } {
   let thinking = ''
-  let main = content
-
-  const thinkRegex = /<think>([\s\S]*?)<\/think>/g
-  let match
-  while ((match = thinkRegex.exec(content)) !== null) {
-    thinking += match[1]
+  let main = ''
+  for (const span of scanOutputSpans(content)) {
+    const value = content.slice(span.start, span.end)
+    if (span.kind === 'think') {
+      thinking += value.replace(/^<think>/, '').replace(/<\/think>$/, '')
+    } else {
+      main += value
+    }
   }
-
-  main = content.replace(/<think>[\s\S]*?<\/think>/g, '')
-
   return { thinking: thinking.trim(), main }
 }
 

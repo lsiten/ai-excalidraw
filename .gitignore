@@ -10,6 +10,11 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+public/fonts/
+src-tauri/target/
+src-tauri/gen/
+.omo/
+siblingwork/
 *.local
 
 # Editor directories and files

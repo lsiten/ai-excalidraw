@@ -1,0 +1,90 @@
+{
+  "artifact": {
+    "artifactId": "fe498ab9-9dd3-4d46-9db7-0d00ed092f5b",
+    "backupPath": null,
+    "files": [
+      {
+        "bytes": 77,
+        "path": ".agents/skills/demo/SKILL.md",
+        "revision": "sha256:55d26d2f3647deee988b62d8785944b05e0b790c80e151a178f270ba7d794c69"
+      },
+      {
+        "bytes": 17,
+        "path": ".agents/skills/demo/references/guide.md",
+        "revision": "sha256:d821f7fb2ab7b32e1b9f35ac37b86a270c3fc6d462cf6483629a808c3399863e"
+      }
+    ],
+    "kind": "artifact",
+    "path": ".agents/skills/demo/SKILL.md",
+    "revision": "sha256:b7484d14bddf4ef340fcc7e4820637aaa64d10b5e365eb54e2ea1f7ab1c958ac",
+    "saved": true,
+    "verified": true
+  },
+  "manifest": {
+    "kind": "manifest",
+    "mcp": [],
+    "memory": [],
+    "policy": {
+      "allow": [],
+      "budgets": {
+        "maxTurns": null,
+        "repairLimit": null,
+        "timeoutMs": null
+      },
+      "deny": []
+    },
+    "provenance": {
+      "fallback": "$HOME/.agents",
+      "mcp": ".agents/mcp.json",
+      "mcpAuthority": "configuration-only; native permissions still required",
+      "policy": null,
+      "resolution": "project-first",
+      "skills": ".agents/skills"
+    },
+    "skills": [
+      {
+        "description": "Demo skill",
+        "files": [
+          {
+            "bytes": 77,
+            "path": ".agents/skills/demo/SKILL.md",
+            "revision": "sha256:55d26d2f3647deee988b62d8785944b05e0b790c80e151a178f270ba7d794c69"
+          },
+          {
+            "bytes": 17,
+            "path": ".agents/skills/demo/references/guide.md",
+            "revision": "sha256:d821f7fb2ab7b32e1b9f35ac37b86a270c3fc6d462cf6483629a808c3399863e"
+          }
+        ],
+        "name": "demo",
+        "path": ".agents/skills/demo/SKILL.md",
+        "revision": "sha256:b7484d14bddf4ef340fcc7e4820637aaa64d10b5e365eb54e2ea1f7ab1c958ac",
+        "source": "project"
+      }
+    ],
+    "warnings": [
+      "Quarantined global Skill roots (unsafe path/type): 2"
+    ]
+  },
+  "preview": {
+    "content": "---\nname: demo\ndescription: Demo skill\n---\nRead [guide](references/guide.md).",
+    "contentRevision": "sha256:55d26d2f3647deee988b62d8785944b05e0b790c80e151a178f270ba7d794c69",
+    "kind": "file",
+    "path": ".agents/skills/demo/SKILL.md",
+    "revision": "sha256:b7484d14bddf4ef340fcc7e4820637aaa64d10b5e365eb54e2ea1f7ab1c958ac"
+  },
+  "request": {
+    "authorized": true,
+    "content": "---\nname: demo\ndescription: Demo skill\n---\nRead [guide](references/guide.md).",
+    "expectedRevision": null,
+    "files": [
+      {
+        "content": "Evidence resource",
+        "path": "references/guide.md"
+      }
+    ],
+    "name": "demo",
+    "op": "writeSkill",
+    "projectId": "2ded6d9c-98fb-4cef-ad0d-a599123a8089"
+  }
+}

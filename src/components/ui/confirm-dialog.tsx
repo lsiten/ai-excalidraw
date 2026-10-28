@@ -9,6 +9,7 @@ interface ConfirmDialogProps {
   confirmLabel?: string
   cancelLabel?: string
   destructive?: boolean
+  zIndex?: number
   onConfirm: () => void
   onOpenChange: (open: boolean) => void
 }
@@ -20,6 +21,7 @@ export function ConfirmDialog({
   confirmLabel,
   cancelLabel,
   destructive = false,
+  zIndex = 50,
   onConfirm,
   onOpenChange,
 }: ConfirmDialogProps) {
@@ -28,8 +30,14 @@ export function ConfirmDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 animate-in fade-in" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-sm rounded-xl bg-card border border-border shadow-xl p-6 animate-in fade-in">
+        <Dialog.Overlay
+          style={{ zIndex }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 animate-in fade-in"
+        />
+        <Dialog.Content
+          style={{ zIndex }}
+          className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-sm rounded-xl bg-card border border-border shadow-xl p-6 animate-in fade-in"
+        >
           <Dialog.Title className="text-lg font-semibold mb-2">{title}</Dialog.Title>
           {description && (
             <Dialog.Description className="text-sm text-muted-foreground mb-6">
