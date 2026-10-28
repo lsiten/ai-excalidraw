@@ -6,7 +6,9 @@
 
 用自然语言描述，让 AI 绘制手绘风格流程图、架构图、示意图。
 
-纯前端应用 · 浏览器直连 OpenAI 兼容 API · 数据保存在本地
+Web 与本地桌面应用 · OpenAI 兼容 API 与本机 AI 工具 · 数据保存在本地
+
+此 fork 在上游基础上新增 **Tauri 2 桌面应用、本地项目、多后端 Agent 与 MCP 画布操作**。当前桌面版为 **0.5.0**，开发、打包和连接方式见 [DESKTOP.md](./DESKTOP.md)，运行架构见 [Agent 架构说明](./docs/agent-architecture.md)。
 
 ---
 
