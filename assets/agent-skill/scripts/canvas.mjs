@@ -19,7 +19,7 @@ async function main() {
     if (message.error) throw new Error(message.error.message)
     return message.result
   }
-  await request('initialize',{protocolVersion:'2025-11-25',capabilities:{},clientInfo:{name:'ai-excalidraw-skill',version:'1.6.0'}})
+  await request('initialize',{protocolVersion:'2025-11-25',capabilities:{},clientInfo:{name:'ai-excalidraw-skill',version:'1.7.0'}})
   const definitions = await request('tools/list')
   if (mode === 'tools') { console.log(JSON.stringify(definitions,null,2)); return }
   const name = mode === 'status' ? 'get_workspace' : tool

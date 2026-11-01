@@ -53,6 +53,8 @@ Skill 更新比较包含资源的整包 SHA-256，验证 frontmatter、包名、
 
 同一消息展示执行过程、计划、必要输入、校验、文件凭据与预览，以及中断后的核对/继续入口。画布承载方案与结果，选择和修改作为下一轮反馈；普通形状没有自动批准能力。Skill 的画布流程与实际源文件分别交付。
 
+应用内 Agent 在选区基础上生成新图时，会在同一画布中把本轮新增元素排列到参考区域右侧，并为每个参考根元素增加一条指向结果的箭头；已有元素更新不会被误判为新结果，避免关系线重复或串接。
+
 本机验证证据保存在不随仓库提交的 `.omo/evidence/agent-architecture/`：Rust 原生服务与协议测试、实际 Codex 首轮/恢复 smoke、API 流测试、真实 React/Excalidraw 界面测试。界面文件链路以临时本机 HTTP 桥调用原始 Rust dispatch，原生 Agent 响应脚本化以稳定覆盖成功和回执丢失；实际 Codex 运行另行验证。测试桥与页面在构建前移除，不随应用发布。
 
 可复现的检查命令见 [桌面开发说明](../DESKTOP.md)。项目文件服务的前后端契约可额外运行 `bunx --no-install vitest run --config src-tauri/src/agent_project/vitest.config.ts`。真实用户目录只读检查须显式设置 `AGENT_REAL_MANIFEST_READONLY=1` 和 `AGENT_REAL_MANIFEST_PROJECT` 为自己的项目绝对路径，默认测试不访问该项目。

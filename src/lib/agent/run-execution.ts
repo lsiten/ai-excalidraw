@@ -13,6 +13,7 @@ import { getLocalChatTools, type LocalChatActivity, type LocalReplyPart, type Na
 import { AgentRunError } from './store'
 import { selectedArtifactContext, summarizeProjectResources } from './context'
 import { boundedActivity } from './text'
+import { buildSelectionRelationPlan } from './selection-relations'
 
 export type AgentReply = {
   readonly content: string; readonly thinking: string; readonly activities: LocalChatActivity[]
@@ -47,6 +48,7 @@ export async function executeDrawRun(options: DrawRun) {
   let content = '', thinking = '', parts: LocalReplyPart[] = [], processed = 0, error: Error | undefined, phase: string | undefined
   let mutationQueue: Promise<void> = Promise.resolve()
   const generated = new Set<string>()
+  const initialElementIds = new Set(canvas.getElements().map((element) => element.id))
   const reply = () => options.onReply({ content, thinking, parts, runId: run.id,
     activities: parts.filter((p): p is LocalChatActivity => p.type === 'tool' || p.type === 'status'),
   })
@@ -117,6 +119,20 @@ export async function executeDrawRun(options: DrawRun) {
     await mutationQueue; await gateway.drain(); signal.throwIfAborted()
     if (error) throw error
     assertCanvasOutputComplete(content)
+    const newElementIds = [...generated].filter((id) => !initialElementIds.has(id))
+    if (newElementIds.length && selected.length) {
+      const currentElements = canvas.getCanvasState()
+      const generatedElements = currentElements.filter((element) => newElementIds.includes(element.id))
+      const plan = buildSelectionRelationPlan(selected, generatedElements, new Set(currentElements.map((element) => element.id)))
+      if (plan.positionUpdates.length) {
+        await gateway.execute('update_elements', { elements: plan.positionUpdates })
+      }
+      if (plan.arrows.length) {
+        await gateway.execute('add_elements', { elements: plan.arrows })
+        for (const arrow of plan.arrows) generated.add(arrow.id)
+      }
+    }
+    await gateway.drain(); signal.throwIfAborted()
     if (Object.values(run.current.operations).some(op => op.status === 'unknown' || op.status === 'prepared')) throw new AgentRunError('有操作尚待核对，不能声明完成。')
     await run.state('validating')
     const settled = run.current.events.flatMap(({event}) => event.type==='operation' && event.status!=='prepared' ? [event] : [])
