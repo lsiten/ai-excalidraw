@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   execute: vi.fn(),
   ready: vi.fn(),
   activate: vi.fn(),
+  openCanvas: vi.fn(),
+  mutate: vi.fn(),
   flush: vi.fn(),
   file: vi.fn(),
   native: vi.fn(),
@@ -17,7 +19,9 @@ vi.mock('./store', () => ({
     getSnapshot: () => mocks.state,
     file: mocks.file,
     activate: mocks.activate,
-    documents: { ready: mocks.ready },
+    openCanvas: mocks.openCanvas,
+    mutate: mocks.mutate,
+    documents: { ready: mocks.ready, flush: mocks.flush },
   },
 }))
 vi.mock('./documents', () => ({ native: mocks.native }))
@@ -39,6 +43,8 @@ beforeEach(() => {
   mocks.ready.mockResolvedValue({ flushCanvas: mocks.flush })
   mocks.flush.mockResolvedValue(true)
   mocks.execute.mockReturnValue({ added: ['box'] })
+  mocks.openCanvas.mockResolvedValue({ canvasId: 'project:A.excalidraw' })
+  mocks.mutate.mockResolvedValue({ path: 'A.excalidraw' })
 })
 it('rejects implicit mutations before touching the active canvas', async () => {
   await expect(
@@ -64,6 +70,29 @@ it('reports the identity of the document actually read', async () => {
     canvasId: 'project:B.excalidraw',
     path: 'B.excalidraw',
   })
+})
+it('loads browser targets without activating the desktop tab and flushes the preview source', async () => {
+  expect(
+    await workspaceCommand({
+      tool: 'open_canvas',
+      arguments: { projectId: 'project', path: 'A.excalidraw', openMode: 'browser' },
+    }),
+  ).toEqual({ canvasId: 'project:A.excalidraw', openMode: 'browser' })
+  expect(mocks.openCanvas).toHaveBeenCalledExactlyOnceWith('project', 'A.excalidraw', true, false)
+  expect(mocks.flush).toHaveBeenCalledExactlyOnceWith('project:A.excalidraw')
+})
+it('creates browser targets without activating the desktop tab', async () => {
+  expect(
+    await workspaceCommand({
+      tool: 'create_canvas',
+      arguments: { projectId: 'project', path: 'A.excalidraw', openMode: 'browser' },
+    }),
+  ).toEqual({ canvasId: 'project:A.excalidraw', openMode: 'browser' })
+  expect(mocks.mutate).toHaveBeenCalledExactlyOnceWith('create_canvas', {
+    projectId: 'project',
+    path: 'A.excalidraw',
+  })
+  expect(mocks.openCanvas).toHaveBeenCalledExactlyOnceWith('project', 'A.excalidraw', true, false)
 })
 it('refuses writes to a document with unresolved external changes', async () => {
   mocks.file.mockReturnValue({ status: 'conflict', error: 'external change' })

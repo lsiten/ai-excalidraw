@@ -50,6 +50,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         .timeout(Duration::from_secs(20))
         .build()?;
     let url = format!("http://127.0.0.1:{}/mcp", connection.port);
+    let open_mode = std::env::var("AI_EXCALIDRAW_OPEN_MODE")
+        .ok()
+        .filter(|mode| matches!(mode.as_str(), "browser" | "client"));
     let finished = Arc::new(AtomicBool::new(false));
     let monitor_finished = Arc::clone(&finished);
     let current = connection.clone();
@@ -95,7 +98,15 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             if bytes.iter().all(u8::is_ascii_whitespace) {
                 continue;
             }
-            let Some(value) = relay(&runtime, &client, &url, &connection.token, bytes)? else {
+            let Some(value) = relay(
+                &runtime,
+                &client,
+                &url,
+                &connection.token,
+                open_mode.as_deref(),
+                bytes,
+            )?
+            else {
                 continue;
             };
             serde_json::to_writer(&mut output, &value)?;
@@ -113,19 +124,21 @@ fn relay(
     client: &reqwest::Client,
     url: &str,
     token: &str,
+    open_mode: Option<&str>,
     bytes: Vec<u8>,
 ) -> Result<Option<serde_json::Value>, Box<dyn std::error::Error>> {
     let response = runtime
         .block_on(async {
-            client
+            let mut request = client
                 .post(url)
                 .bearer_auth(token)
                 .header("content-type", "application/json")
                 .header("accept", "application/json, text/event-stream")
-                .header("mcp-protocol-version", "2025-11-25")
-                .body(bytes)
-                .send()
-                .await
+                .header("mcp-protocol-version", "2025-11-25");
+            if let Some(mode) = open_mode {
+                request = request.header("x-ai-excalidraw-open-mode", mode);
+            }
+            request.body(bytes).send().await
         })?
         .error_for_status()?;
     if response.status() == reqwest::StatusCode::ACCEPTED {
@@ -190,7 +203,7 @@ mod tests {
             .build()
             .unwrap();
         let request = br#"{"jsonrpc":"2.0","id":1,"method":"ping"}"#.to_vec();
-        let result = relay(&runtime, &client, &url, "fixture-token", request)
+        let result = relay(&runtime, &client, &url, "fixture-token", None, request)
             .unwrap()
             .unwrap();
         assert_eq!(result["id"], 1);

@@ -62,7 +62,7 @@ impl ProjectResources {
             ToolId::Claude => {
                 if let Some(mcp) = &self.mcp {
                     let path = runtime.join("project-mcp.json");
-                    std::fs::write(&path, Self::enabled_config(mcp).to_string())
+                    std::fs::write(&path, Self::enabled_config(mcp, "client").to_string())
                         .map_err(io("准备 Claude 项目 MCP"))?;
                     command.arg("--mcp-config").arg(path);
                 }
@@ -75,7 +75,7 @@ impl ProjectResources {
                 }
                 if let Some(mcp) = &self.mcp {
                     // Same native registerMcpServer adapter as Multica pi.go (Pi >=0.99).
-                    let encoded = Self::enabled_config(mcp)["mcpServers"].to_string();
+                    let encoded = Self::enabled_config(mcp, "client")["mcpServers"].to_string();
                     let script = format!("const servers = {encoded};\nexport default function(pi) {{\nif (typeof pi.registerMcpServer !== 'function') throw new Error('Project MCP requires Pi >=0.99');\nfor (const [name, config] of Object.entries(servers)) pi.registerMcpServer(name, config);\n}}\n");
                     let path = runtime.join("project-mcp.mjs");
                     std::fs::write(&path, script).map_err(io("准备 Pi 项目 MCP 适配器"))?;
@@ -98,6 +98,19 @@ impl ProjectResources {
                 table.remove("disabled");
                 table.insert("enabled".into(), Value::Bool(true));
                 table.remove("type");
+                if name == "ai-excalidraw" {
+                    table
+                        .entry("env")
+                        .or_insert_with(|| Value::Object(serde_json::Map::new()));
+                    table
+                        .get_mut("env")
+                        .and_then(Value::as_object_mut)
+                        .ok_or(ChatError::ProjectConfig)?
+                        .insert(
+                            "AI_EXCALIDRAW_OPEN_MODE".into(),
+                            Value::String("client".into()),
+                        );
+                }
                 if let Some(headers) = table.remove("headers") {
                     table.insert("http_headers".into(), headers);
                 }
@@ -138,7 +151,7 @@ impl ProjectResources {
             if let Some(mcp) = &self.mcp {
                 std::fs::write(
                     plugin.join("mcp.json"),
-                    Self::enabled_config(mcp).to_string(),
+                    Self::enabled_config(mcp, "client").to_string(),
                 )
                 .map_err(io("准备 Cursor 项目 MCP"))?;
             }
@@ -147,7 +160,7 @@ impl ProjectResources {
         Ok(())
     }
 
-    fn enabled_config(mcp: &McpConfig) -> Value {
+    fn enabled_config(mcp: &McpConfig, open_mode: &str) -> Value {
         let servers: BTreeMap<_, _> = mcp
             .mcp_servers
             .iter()
@@ -157,6 +170,17 @@ impl ProjectResources {
                 if let Some(object) = value.as_object_mut() {
                     object.remove("enabled");
                     object.remove("disabled");
+                    if k == "ai-excalidraw" {
+                        object
+                            .entry("env")
+                            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+                        if let Some(env) = object.get_mut("env").and_then(Value::as_object_mut) {
+                            env.insert(
+                                "AI_EXCALIDRAW_OPEN_MODE".into(),
+                                Value::String(open_mode.into()),
+                            );
+                        }
+                    }
                 }
                 (k, value)
             })

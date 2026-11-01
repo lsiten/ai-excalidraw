@@ -35,7 +35,7 @@ pub(super) fn export(context: &Context, root: Option<&Path>) -> Result<Guide, St
     let metadata = serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
     let connector = serde_json::to_string_pretty(&json!({"mcpServers": {"ai-excalidraw": {
         "type": "stdio", "command": context.executable, "args": ["--mcp-stdio"],
-        "env": {"AI_EXCALIDRAW_BRIDGE_FILE": context.bridge}
+        "env": {"AI_EXCALIDRAW_BRIDGE_FILE": context.bridge, "AI_EXCALIDRAW_OPEN_MODE": "browser"}
     }}}))
     .map_err(|e| e.to_string())?;
     let scope = match root {
@@ -54,7 +54,7 @@ pub(super) fn export(context: &Context, root: Option<&Path>) -> Result<Guide, St
         None => "请将源目录中的七个文件（SKILL.md、references/elements.md、references/local-setup.md、scripts/canvas.mjs、agents/openai.yaml、assets/LICENSE-ai-excalidraw.txt、VERSION）复制到该工具支持的 ai-excalidraw-desktop Skill 目录，保持相对路径。覆盖前备份原文件，保留其他自定义文件，拒绝不安全的符号链接路径。",
     };
     let text = format!(
-        r"请为我当前使用的 AI 工具接入本机 AI Excalidraw 桌面应用的原生 MCP 和 Skill。
+        r#"请为我当前使用的 AI 工具接入本机 AI Excalidraw 桌面应用的原生 MCP 和 Skill。
 
 桌面应用启动时自动启动自己的 MCP 服务，服务运行不依赖任何 AI 开发工具。下面的配置仅用于客户端连接。请勿自动启动或重启桌面应用；若应用未运行，请提示我手动打开。连接器是现有桌面程序的 --mcp-stdio 模式，无需安装 Node.js、npm 包或其他运行时。
 
@@ -75,12 +75,12 @@ Skill 源目录（绝对路径，JSON 转义）：
 
 {codex}
 
-修改前先备份配置，解析失败时停止并报告，禁止重置整个文件。仅合并 ai-excalidraw 这一 MCP 条目的传输字段：command、args 和 env.AI_EXCALIDRAW_BRIDGE_FILE；JSON 客户端需要时设 type 为 stdio，移除该条目中冲突的旧 HTTP URL 和 headers。保留其他服务器、无关环境变量及已有审批、enabled/disabled、工具权限等策略。采用原子写入，失败时恢复备份。
+修改前先备份配置，解析失败时停止并报告，禁止重置整个文件。仅合并 ai-excalidraw 这一 MCP 条目的传输字段：command、args、env.AI_EXCALIDRAW_BRIDGE_FILE 和 env.AI_EXCALIDRAW_OPEN_MODE；JSON 客户端需要时设 type 为 stdio，移除该条目中冲突的旧 HTTP URL 和 headers。保留其他服务器、无关环境变量及已有审批、enabled/disabled、工具权限等策略。采用原子写入，失败时恢复备份。
 
 桥接文件路径用于绑定当前桌面实例。请勿读取、输出或复制其中的 bearer token，也不要把 token 写入客户端配置或对话。本指引仅提供路径，不包含凭据。
 
-完成后报告修改路径和备份位置，提示我按工具要求重新加载 MCP 与 Skill；在桌面应用已运行时执行只读连接验证，不创建或改动画布。
-"
+完成后报告修改路径和备份位置，提示我按工具要求重新加载 MCP 与 Skill；外部工具调用 open_canvas 时优先使用 openMode="browser"，并在自己的默认浏览器打开返回的 browserUrl。AI Excalidraw 内置对话由应用自动使用桌面标签页。桌面应用已运行时执行只读连接验证，不创建或改动画布。
+        "#
     );
     let mut transaction = files::Transaction::default();
     for (relative, bytes) in PAYLOAD {

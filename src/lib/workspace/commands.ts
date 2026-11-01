@@ -15,8 +15,8 @@ const schemas = {
   list_files: z.object({ projectId }).strict(),
   get_presentation: z.object({ projectId }).strict(),
   set_presentation: z.object({ projectId, presentation: presentationSchema.strict() }).strict(),
-  create_canvas: z.object({ projectId, path }).strict(),
-  open_canvas: z.object({ projectId, path }).strict(),
+  create_canvas: z.object({ projectId, path, openMode: z.enum(['client', 'browser']).default('client') }).strict(),
+  open_canvas: z.object({ projectId, path, openMode: z.enum(['client', 'browser']).default('client') }).strict(),
   rename_file: z.object({ projectId, from: path, to: path }).strict(),
   duplicate_canvas: z.object({ projectId, from: path, to: path }).strict(),
   create_directory: z.object({ projectId, path }).strict(),
@@ -76,12 +76,18 @@ export async function workspaceCommand(input: unknown, operationId?: string): Pr
         return native('write_presentation', schemas.set_presentation.parse(command.arguments))
       case 'open_canvas': {
         const args = schemas.open_canvas.parse(command.arguments)
-        return workspace.openCanvas(args.projectId, args.path)
+        const browser = args.openMode === 'browser'
+        const opened = await workspace.openCanvas(args.projectId, args.path, true, !browser)
+        if (browser) await workspace.documents.flush(opened.canvasId)
+        return { ...opened, openMode: args.openMode }
       }
       case 'create_canvas': {
         const args = schemas.create_canvas.parse(command.arguments)
-        await workspace.mutate('create_canvas', args)
-        return workspace.openCanvas(args.projectId, args.path)
+        const browser = args.openMode === 'browser'
+        await workspace.mutate('create_canvas', { projectId: args.projectId, path: args.path })
+        const opened = await workspace.openCanvas(args.projectId, args.path, true, !browser)
+        if (browser) await workspace.documents.flush(opened.canvasId)
+        return { ...opened, openMode: args.openMode }
       }
       case 'rename_file':
         return workspace.mutate(command.tool, schemas.rename_file.parse(command.arguments))

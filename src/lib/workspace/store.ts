@@ -161,15 +161,20 @@ export class Workspace {
     await this.refresh()
     await this.persistSession()
   }
-  async openCanvas(projectId: string, path: string, persist = true): Promise<{ canvasId: string }> {
+  async openCanvas(
+    projectId: string,
+    path: string,
+    persist = true,
+    activate = true,
+  ): Promise<{ canvasId: string }> {
     const id = canvasId(projectId, path)
-    if (this.snapshot.activeId && this.snapshot.activeId !== id)
+    if (activate && this.snapshot.activeId && this.snapshot.activeId !== id)
       await this.documents.flush(this.snapshot.activeId)
     if (!this.snapshot.documents.some((doc) => doc.id === id))
       this.set({
         documents: [...this.snapshot.documents, await this.documents.load(projectId, path)],
       })
-    this.set({ activeId: id, projectId })
+    if (activate) this.set({ activeId: id, projectId })
     await this.refresh()
     if (persist) await this.persistSession()
     return { canvasId: id }

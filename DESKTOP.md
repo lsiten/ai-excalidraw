@@ -88,7 +88,7 @@ node scripts/smoke-mcp.mjs
 
 旧版缓存不会自动删除。打开项目后的空白工作区提供“将旧版缓存画布迁移到当前项目”，将非空历史画布复制为独立文件。可关闭标签页返回此入口。
 
-外部 AI 先 `get_workspace` / `list_projects` / `list_files`，再 `open_canvas` 获得 `canvasId`。`add_elements`、`update_elements`、`delete_elements`、`fit_canvas`、`undo`、`redo` 必须显式携带 `canvasId`。已经打开的后台标签可通过 ID 编辑，操作完成前等待该文件落盘；画布重命名后需要重新获取 ID。`get_canvas` 可省略 ID 读取当前标签。项目管理另有 `open_project`、`create_canvas`、`create_directory`、`rename_file`、`duplicate_canvas`、`delete_file`、`reveal_file`。
+外部 AI 先 `get_workspace` / `list_projects` / `list_files`，再用 `open_canvas` 获得 `canvasId`；新建画布也可在 `create_canvas` 传同样的 `openMode`。外部客户端传 `openMode:"browser"` 时不会激活桌面标签，而是返回 `browserUrl`；Codex、Claude Code、Cursor、Pi 等宿主应使用自身默认浏览器打开该地址。应用内本地对话省略 `openMode`，继续激活 AI Excalidraw 标签页。浏览器地址只提供当前保存内容的只读预览，后续画布修改仍通过 MCP 写入本地文件。`add_elements`、`update_elements`、`delete_elements`、`fit_canvas`、`undo`、`redo` 必须显式携带 `canvasId`。已经打开的后台标签可通过 ID 编辑，操作完成前等待该文件落盘；画布重命名后需要重新获取 ID。`get_canvas` 可省略 ID 读取当前标签。项目管理另有 `open_project`、`create_canvas`、`create_directory`、`rename_file`、`duplicate_canvas`、`delete_file`、`reveal_file`。
 
 项目路径采用本地真实目录，画布和目录参数采用项目内相对路径。拒绝 `..`、绝对路径、隐藏辅助目录和符号链接穿越。此发行包面向 Apple Silicon macOS；本地选择器、Finder 与废纸篓集成使用 macOS 系统能力。
 
@@ -125,4 +125,4 @@ node scripts/smoke-mcp.mjs
 
 运行记录统一保存执行过程、计划、真实用户输入、操作回执和结果核验。中断后可核对已保存的修改并继续，恢复记录不会再次执行写入。项目 Skill 包支持源文件预览、资源、版本冲突检查、原子保存和备份；项目记忆需用户确认具体内容后才写入。画布支持本轮平台修改的局部回退，拒绝覆盖后续用户编辑。直接绘图和选中元素的原 ID 修改继续保留。
 
-当前 MCP 共 26 个工具，新增项目资源清单、受限文件预览、Skill 包保存、真实人工输入、确认项目记忆和执行计划工具；写入和人工交互需要绑定项目的应用内任务。内置画布 Skill 为 1.5.0。各后端能力、日志和权限边界见 [Agent 架构说明](./docs/agent-architecture.md)。
+当前 MCP 共 26 个工具，新增项目资源清单、受限文件预览、Skill 包保存、真实人工输入、确认项目记忆和执行计划工具；写入和人工交互需要绑定项目的应用内任务。内置画布 Skill 为 1.6.0。外部 MCP 安装会设置 `AI_EXCALIDRAW_OPEN_MODE=browser`，应用内本地聊天运行时会覆盖为 `client`，避免内置对话离开桌面工作区。各后端能力、日志和权限边界见 [Agent 架构说明](./docs/agent-architecture.md)。

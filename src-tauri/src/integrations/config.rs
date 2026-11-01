@@ -76,6 +76,12 @@ fn update_toml(text: &str, command: &str, bridge: &str) -> Result<String, String
             .and_then(|env| env.get("AI_EXCALIDRAW_BRIDGE_FILE"))
             .and_then(Item::as_str)
             == Some(bridge)
+        && server
+            .get("env")
+            .and_then(Item::as_table_like)
+            .and_then(|env| env.get("AI_EXCALIDRAW_OPEN_MODE"))
+            .and_then(Item::as_str)
+            == Some("browser")
         && ![
             "url",
             "headers",
@@ -109,6 +115,7 @@ fn update_toml(text: &str, command: &str, bridge: &str) -> Result<String, String
         .and_then(Item::as_table_like_mut)
         .ok_or("MCP env 必须为 TOML 表")?;
     env.insert("AI_EXCALIDRAW_BRIDGE_FILE", toml_edit::value(bridge));
+    env.insert("AI_EXCALIDRAW_OPEN_MODE", toml_edit::value("browser"));
     Ok(doc.to_string())
 }
 
@@ -150,6 +157,7 @@ fn update_json(text: &str, command: &str, bridge: &str) -> Result<String, String
         .as_object_mut()
         .ok_or("MCP env 必须为 JSON 对象")?;
     env.insert("AI_EXCALIDRAW_BRIDGE_FILE".into(), json!(bridge));
+    env.insert("AI_EXCALIDRAW_OPEN_MODE".into(), json!("browser"));
     if doc == original {
         return Ok(text.into());
     }

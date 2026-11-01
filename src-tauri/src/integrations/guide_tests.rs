@@ -75,7 +75,10 @@ fn exports_seven_files_and_quoted_instance_config_without_reading_client_or_brid
     assert_eq!(entry["args"], json!(["--mcp-stdio"]));
     assert_eq!(
         entry["env"],
-        json!({"AI_EXCALIDRAW_BRIDGE_FILE": fixture.context.bridge})
+        json!({
+            "AI_EXCALIDRAW_BRIDGE_FILE": fixture.context.bridge,
+            "AI_EXCALIDRAW_OPEN_MODE": "browser"
+        })
     );
     assert_eq!(entry["type"], "stdio");
     let toml = guide

@@ -1,6 +1,6 @@
 # 元素格式
 
-以 `tools` 返回的运行时 JSON Schema 为准。以下对应本机桌面版 0.2.0，新增或修改额外字段会被拒绝。所有写入与定位请求都必须包含 `canvasId`；示例中的 ID 仅表示格式，使用时替换为 `get_workspace`、`create_canvas` 或 `open_canvas` 返回的实际 ID。
+以 `tools` 返回的运行时 JSON Schema 为准。以下对应本机桌面版 0.5.0，新增或修改额外字段会被拒绝。所有写入与定位请求都必须包含 `canvasId`；示例中的 ID 仅表示格式，使用时替换为 `get_workspace`、`create_canvas` 或 `open_canvas` 返回的实际 ID。
 
 ## 新建与修改
 

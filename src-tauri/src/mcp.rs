@@ -73,6 +73,41 @@ fn metadata(request: &Request, catalog: &Catalog) -> Option<Value> {
     })
 }
 
+fn prepare_browser_open(call: &mut ToolCall, headers: &HeaderMap) -> Option<(String, String)> {
+    if matches!(call.name.as_str(), "open_canvas" | "create_canvas") {
+        if let Some(mode) = headers
+            .get("x-ai-excalidraw-open-mode")
+            .and_then(|value| value.to_str().ok())
+            .filter(|mode| matches!(*mode, "browser" | "client"))
+        {
+            if mode == "client" || call.arguments.get("openMode").is_none() {
+                call.arguments["openMode"] = json!(mode);
+            }
+        }
+    }
+    if call.arguments.get("openMode").and_then(Value::as_str) != Some("browser") {
+        return None;
+    }
+    Some((
+        call.arguments.get("projectId")?.as_str()?.to_owned(),
+        call.arguments.get("path")?.as_str()?.to_owned(),
+    ))
+}
+
+fn add_browser_url(value: Value, state: &BridgeState, target: Option<(String, String)>) -> Value {
+    let Some((project_id, path)) = target else {
+        return value;
+    };
+    let mut value = value;
+    if let Some(object) = value.as_object_mut() {
+        object.insert(
+            "browserUrl".into(),
+            json!(bridge::browser_url(state, &project_id, &path)),
+        );
+    }
+    value
+}
+
 pub async fn handle(
     State(state): State<Arc<BridgeState>>,
     headers: HeaderMap,
@@ -131,6 +166,8 @@ pub async fn handle(
     if !call.arguments.is_object() || !catalog.tools.iter().any(|tool| tool["name"] == call.name) {
         return Json(error(&id, -32602, "Unknown tool or invalid arguments")).into_response();
     }
+    let mut call = call;
+    let browser_target = prepare_browser_open(&mut call, &headers);
     let (status, value) = bridge::execute(
         &state,
         CanvasCommand {
@@ -139,6 +176,11 @@ pub async fn handle(
         },
     )
     .await;
+    let value = if status.is_success() {
+        add_browser_url(value, &state, browser_target)
+    } else {
+        value
+    };
     let text = if status.is_success() {
         value.to_string()
     } else {

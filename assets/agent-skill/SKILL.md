@@ -2,12 +2,12 @@
 name: ai-excalidraw-desktop
 description: 使用本机 AI Excalidraw 与用户协作，通过 MCP 读取和编辑本地画布、展示方案与结果、结合选区反馈迭代，以及在创建或优化 Skill 时表达流程和改动点。用户提到 AI Excalidraw、本地项目画布或用 AI 操作桌面画布时使用，也支持项目文件与演示配置；不用于任意网站的 Excalidraw 自动化。
 metadata:
-  version: "1.5.0"
+  version: "1.6.0"
 ---
 
 # AI Excalidraw 桌面画布
 
-适配桌面应用与 MCP 服务 0.5.0，直接操作正在运行的本地应用。外部 AI 使用自身模型连接，无需应用内 API Key。目标是用户能在真实项目和画布中看到并继续编辑结果。
+适配桌面应用与 MCP 服务 0.5.0，直接操作正在运行的本地应用。外部 AI 使用自身模型连接，无需应用内 API Key。应用内对话使用桌面标签页；外部客户端使用自己的默认浏览器查看画布。
 
 ## 用画布与用户协作
 
@@ -71,8 +71,8 @@ node <skill-dir>/scripts/canvas.mjs call add_elements --args-file /absolute/path
 | `list_projects` | `{}`；列出项目及 ID |
 | `open_project` | `{ "directory": "/absolute/project" }`；打开本地绝对目录作为项目 |
 | `list_files` | `{ "projectId": "UUID" }`；查看项目内文件和目录 |
-| `create_canvas` | `{ "projectId": "UUID", "path": "diagrams/new.excalidraw" }`；创建并打开，返回 `canvasId` |
-| `open_canvas` | `{ "projectId": "UUID", "path": "diagrams/existing.excalidraw" }`；打开并激活，返回 `canvasId` |
+| `create_canvas` | `{ "projectId": "UUID", "path": "diagrams/new.excalidraw", "openMode": "browser" }`；外部客户端传 `browser` 时创建后返回 `canvasId` 和 `browserUrl`，应用内对话省略该字段并激活桌面标签 |
+| `open_canvas` | `{ "projectId": "UUID", "path": "diagrams/existing.excalidraw", "openMode": "browser" }`；外部客户端使用 `browser`，返回 `canvasId` 和 `browserUrl`，然后用当前 AI 环境的默认浏览器打开该 URL。应用内对话使用默认的 `client`，激活桌面标签页。浏览器页面是当前保存内容的只读预览；AI 继续通过 MCP 修改本地画布 |
 | `rename_file` | `{ "projectId": "UUID", "from": "old", "to": "new" }`；重命名或移动文件/目录，关联对话随移 |
 | `duplicate_canvas` | `{ "projectId": "UUID", "from": "a.excalidraw", "to": "b.excalidraw" }`；复制到未占用路径 |
 | `create_directory` | `{ "projectId": "UUID", "path": "diagrams" }`；父目录必须已存在 |
@@ -81,8 +81,8 @@ node <skill-dir>/scripts/canvas.mjs call add_elements --args-file /absolute/path
 
 文件操作的路径均相对于项目目录，使用 `/` 分隔，不传绝对路径、`.` 或 `..` 路径段；`open_project.directory` 才使用绝对目录。画布文件以 `.excalidraw` 结尾。
 
-- 新图：确认项目，`list_files` 检查目标和父目录；缺失父目录时逐层 `create_directory`，然后 `create_canvas`，使用返回的 `canvasId`。
-- 编辑已有文件：先 `list_files` 定位；若已在 `canvases` 中加载，可直接使用其 ID，否则 `open_canvas` 后使用返回 ID。需要让用户查看后台画布时用 `open_canvas` 激活。
+- 新图：确认项目，`list_files` 检查目标和父目录；缺失父目录时逐层 `create_directory`，然后 `create_canvas`，外部客户端按需传 `openMode:"browser"` 并用默认浏览器打开返回的 `browserUrl`，使用返回的 `canvasId`。
+- 编辑已有文件：先 `list_files` 定位；若已在 `canvases` 中加载，可直接使用其 ID，否则 `open_canvas` 后使用返回 ID。外部客户端需要用户查看时传 `openMode:"browser"` 并用自身默认浏览器打开返回的 `browserUrl`；应用内对话省略该字段，使用桌面标签页。
 - 重命名或移动：执行后重新 `list_files` 和 `get_workspace`，路径变化会改变相关 `canvasId`，后续改用新 ID；目录内画布也要重新定位，对话由应用一起移动。
 - 复制：使用未占用目标，完成后 `list_files` 核对，需要编辑副本时再 `open_canvas`。
 - 删除：先检查目标和用户授权范围；删除目录会把所有文件一起移入系统废纸篓，包括非画布文件。完成后重新读取文件和工作区列表，不把删除文件等同于关闭标签页。
