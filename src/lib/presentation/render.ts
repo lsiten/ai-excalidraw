@@ -1,4 +1,4 @@
-import { exportToSvg, getCommonBounds, loadFromBlob } from '@excalidraw/excalidraw'
+import { convertToExcalidrawElements, exportToCanvas, exportToSvg, getCommonBounds, loadFromBlob } from '@excalidraw/excalidraw'
 import type {
   ExcalidrawElement,
   NonDeleted,
@@ -7,6 +7,44 @@ import type {
 import { fileSchema, WorkspaceError } from '@/lib/workspace/types'
 import { native } from '@/lib/workspace/documents'
 import type { PlaybackArea, Slide } from './types'
+import type { SlideImage } from './pptx'
+
+export async function renderSlideImage(projectId: string, path: string, area?: PlaybackArea): Promise<SlideImage> {
+  const file = fileSchema.parse(await native('read_canvas_file', { projectId, path }))
+  const scene = await loadFromBlob(new Blob([file.content]), null, null)
+  const elements = (scene.elements ?? []).filter(
+    (element): element is NonDeleted<OrderedExcalidrawElement> => !element.isDeleted,
+  )
+  const frame = area ? convertToExcalidrawElements([
+    { type: 'frame', children: [], ...area },
+  ]).find((element) => element.type === 'frame') : undefined
+  if (area && !frame) throw new WorkspaceError('无法创建 PPT 播放区域')
+  const dimensions = (width: number, height: number) => {
+    const scale = Math.min(2, 2560 / Math.max(width, height))
+    return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)), scale }
+  }
+  const canvas = elements.length ? await exportToCanvas({
+    elements, files: scene.files ?? {}, exportingFrame: frame, exportPadding: 24,
+    getDimensions: dimensions,
+    appState: { ...scene.appState, exportBackground: true,
+      exportWithDarkMode: scene.appState?.theme === 'dark' },
+  }) : document.createElement('canvas')
+  try {
+    if (!elements.length) {
+      const size = dimensions(area?.width ?? 1600, area?.height ?? 900)
+      canvas.width = size.width
+      canvas.height = size.height
+      const context = canvas.getContext('2d')
+      if (!context) throw new WorkspaceError('无法创建 PPT 页面图像')
+      context.fillStyle = scene.appState?.viewBackgroundColor ?? '#ffffff'
+      context.fillRect(0, 0, canvas.width, canvas.height)
+    }
+    return { path, width: canvas.width, height: canvas.height, data: canvas.toDataURL('image/png') }
+  } finally {
+    canvas.width = 0
+    canvas.height = 0
+  }
+}
 
 export function selectionArea(
   elements: readonly ExcalidrawElement[],

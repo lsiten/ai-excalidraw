@@ -17,6 +17,8 @@ At <=1000px the canvas top toolbar uses auto/minmax/auto columns and an 8px gap,
 
 ## Folder presentations
 
+- Folder menus offer direct 导出 PPT; the project root has 导出根目录 PPT. The existing preparation dialog also offers export with the current ordering and include-subfolder choice. Each canvas becomes one image slide in a 16:9 PPTX, honoring its playback area and aspect ratio; native save uses a system file dialog, browser hosting downloads a file. Show page progress, cancellation, saved path and retryable errors in the preparation footer. Empty folders cannot export. No editable-shape promise is made for the page images.
+
 - Reuse Button/Input/Radix Dialog and workspace theme tokens. Preparation is a bounded list-detail dialog: 240px sortable page list owns scrolling, flexible preview owns its area, fixed header/footer. At 800px the list remains 200px and preview shrinks without horizontal page overflow.
 - A file is a slide; a folder is a deck. Natural filename order is the fallback, custom order and include-subfolder setting persist in project metadata. Selected-element bounds define an optional fixed playback rectangle. Previews always render actual Excalidraw scene content, including embedded images and local fonts.
 - Playback is a separate viewport overlay with native fullscreen. The slide is centered on a neutral black stage, preserving its original aspect ratio and colors. Editor and AI controls are hidden/inert; navigation returns to the previous editing position. Thumbnail rail scrolls independently.

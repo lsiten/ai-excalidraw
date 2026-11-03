@@ -43,6 +43,7 @@ export type PresentationState =
       readonly deck: Deck
       readonly loading: string | null
       readonly error: string | null
+      readonly notice?: string
     }
   | {
       readonly phase: 'playing'

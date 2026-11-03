@@ -85,6 +85,12 @@ export function WorkspaceShell() {
               refresh={() => run(() => workspace.checkExternal(true))}
               action={action}
               collapse={() => setExplorer(false)}
+              onExportPpt={(folder) => {
+                if (state.projectId)
+                  void presentations.exportFolder(state.projectId, folder).catch((error) =>
+                    workspace.set({ error: error instanceof Error ? error.message : String(error) }),
+                  )
+              }}
               onPresent={(folder) => {
                 if (state.projectId)
                   void presentations.prepare(state.projectId, folder).catch((error) =>

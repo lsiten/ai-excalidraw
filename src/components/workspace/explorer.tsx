@@ -25,6 +25,7 @@ interface Props {
   readonly refresh: () => void
   readonly action: (action: FileAction, entry: FileEntry) => void
   readonly onPresent: (folder: string) => void
+  readonly onExportPpt: (folder: string) => void
   readonly collapse: () => void
 }
 export function Explorer(props: Props) {
@@ -89,6 +90,10 @@ export function Explorer(props: Props) {
             <p className="text-[11px] text-muted-foreground truncate" title={project.directory}>
               {project.directory}
             </p>
+            <Button variant="outline" size="sm" className="w-full" disabled={disabled}
+              onClick={() => props.onExportPpt('')}>
+              导出根目录 PPT
+            </Button>
           </>
         )}
       </div>
@@ -188,6 +193,18 @@ export function Explorer(props: Props) {
                     if (event.key === 'Escape') setMenu(null)
                   }}
                 >
+                  {directory && (
+                    <button
+                      className="block w-full rounded px-3 py-2 text-left text-xs hover:bg-muted"
+                      disabled={disabled}
+                      onClick={() => {
+                        setMenu(null)
+                        props.onExportPpt(entry.path)
+                      }}
+                    >
+                      导出 PPT
+                    </button>
+                  )}
                   {directory && (
                     <button
                       className="block w-full rounded px-3 py-2 text-left text-xs hover:bg-muted"

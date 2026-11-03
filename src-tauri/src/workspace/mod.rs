@@ -1,6 +1,7 @@
 mod files;
 mod io;
 mod native;
+mod pptx;
 mod presentation;
 #[cfg(test)]
 mod presentation_tests;
@@ -87,6 +88,10 @@ pub enum Request {
     ExportCanvas {
         content: String,
     },
+    ExportPresentation {
+        name: String,
+        bytes: Vec<u8>,
+    },
     LoadWorkspaceSession {},
     SaveWorkspaceSession {
         session: Value,
@@ -117,10 +122,10 @@ pub async fn workspace_command(
 )]
 pub fn dispatch(data: &Path, request: Request) -> Result<Value> {
     use Request::{
-        CreateCanvas, CreateDirectory, DeleteFile, DuplicateCanvas, ExportCanvas, ImportCanvas,
-        ListFiles, ListProjects, LoadWorkspaceSession, OpenProject, PickPath, ReadCanvasFile,
-        ReadChats, ReadPresentation, RenameFile, RevealFile, SaveCanvasFile, SaveWorkspaceSession,
-        WriteChats, WritePresentation,
+        CreateCanvas, CreateDirectory, DeleteFile, DuplicateCanvas, ExportCanvas,
+        ExportPresentation, ImportCanvas, ListFiles, ListProjects, LoadWorkspaceSession,
+        OpenProject, PickPath, ReadCanvasFile, ReadChats, ReadPresentation, RenameFile, RevealFile,
+        SaveCanvasFile, SaveWorkspaceSession, WriteChats, WritePresentation,
     };
     match request {
         ReadPresentation { project_id } => {
@@ -153,6 +158,7 @@ pub fn dispatch(data: &Path, request: Request) -> Result<Value> {
             io::atomic_write(&path, content.as_bytes())?;
             Ok(json!({"path": path}))
         }
+        ExportPresentation { name, bytes } => pptx::export(&name, &bytes),
         ListFiles { project_id } => {
             let root = projects::project_root(data, &project_id)?;
             let mut entries = Vec::new();

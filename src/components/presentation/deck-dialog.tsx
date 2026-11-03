@@ -1,6 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useState } from 'react'
-import { Play, X, Save, Loader2, Folder } from 'lucide-react'
+import { Play, X, Save, Loader2, Folder, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { orderedPages, type Deck } from '@/lib/presentation/types'
 import { presentations } from '@/lib/presentation/controller'
@@ -12,10 +12,12 @@ export function DeckDialog({
   deck,
   loading,
   error,
+  exportNotice,
 }: {
   readonly deck: Deck
   readonly loading: string | null
   readonly error: string | null
+  readonly exportNotice?: string
 }) {
   const [saving, setSaving] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -57,7 +59,7 @@ export function DeckDialog({
         >
           <header className="flex shrink-0 items-start gap-3 border-b border-border p-5">
             <div className="min-w-0 flex-1">
-              <Dialog.Title className="text-lg font-semibold">文件夹演示</Dialog.Title>
+              <Dialog.Title className="text-lg font-semibold">文件夹演示与导出</Dialog.Title>
               <Dialog.Description className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Folder size={13} />
                 <span className="truncate" title={deck.folder}>
@@ -121,15 +123,31 @@ export function DeckDialog({
               <p className="mt-2 text-xs leading-6 text-muted-foreground">
                 拖动左侧页面或使用上下箭头排序。未手动排序的页面按文件名自然排序。演示中可临时批注，翻页保留，退出后全部清空。
               </p>
+              <p className="mt-2 text-xs leading-6 text-muted-foreground">
+                导出 PPT 时，每张画布对应一页，使用播放区域并等比居中。内容以图片保留原貌，可在 PowerPoint 中调整整页图片。
+              </p>
             </section>
           </div>
           <footer className="flex shrink-0 flex-wrap items-center gap-3 border-t border-border p-4">
             <p
-              className={`min-w-0 flex-1 text-xs ${error || saveError ? 'text-destructive' : 'text-muted-foreground'}`}
+              className={`min-w-0 basis-full min-[1100px]:basis-0 flex-1 break-all text-xs ${error || saveError ? 'text-destructive' : 'text-muted-foreground'}`}
               role={error || saveError ? 'alert' : 'status'}
             >
-              {loading || error || saveError || notice || '顺序调整将在保存或开始播放时记录。'}
+              {loading || error || saveError || notice || exportNotice || '顺序调整将在保存或开始播放时记录。'}
             </p>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={disabled || !pages.length}
+              onClick={() => {
+                setNotice(null)
+                setSaveError(null)
+                void presentations.exportPpt(deck)
+              }}
+            >
+              <Download size={14} className="mr-1" />
+              导出 PPT
+            </Button>
             <Button
               variant="outline"
               size="sm"

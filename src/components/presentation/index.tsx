@@ -8,7 +8,7 @@ export function PresentationHost() {
     case 'closed':
       return null
     case 'setup':
-      return <DeckDialog deck={state.deck} loading={state.loading} error={state.error} />
+      return <DeckDialog deck={state.deck} loading={state.loading} error={state.error} exportNotice={state.notice} />
     case 'playing':
       return <PresentationPlayer state={state} />
   }

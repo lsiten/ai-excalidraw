@@ -12,7 +12,7 @@ import {
   type PresentationState,
   type Slide,
 } from './types'
-import { renderSlide, selectionArea } from './render'
+import { renderSlide, renderSlideImage, selectionArea } from './render'
 
 export class PresentationController {
   private state: PresentationState = { phase: 'closed' }
@@ -51,7 +51,7 @@ export class PresentationController {
   }
   update(deck: Deck) {
     if (this.state.phase === 'setup' && !this.state.loading)
-      this.set({ ...this.state, deck, error: null })
+      this.set({ phase: 'setup', deck, loading: null, error: null })
   }
   async save(deck: Deck): Promise<void> {
     await workspace.run(async () => {
@@ -118,6 +118,58 @@ export class PresentationController {
       slides.forEach((slide) => URL.revokeObjectURL(slide.url))
       if (token === this.generation)
         this.set({ phase: 'setup', deck, loading: null, error: message(error) })
+    }
+  }
+  async exportFolder(projectId: string, folder: string): Promise<void> {
+    await this.prepare(projectId, folder)
+    const current = this.state
+    if (current.phase === 'setup') await this.exportPpt(current.deck)
+  }
+  async exportPpt(deck: Deck): Promise<void> {
+    if (this.state.phase !== 'setup' || this.state.loading) return
+    this.set({ phase: 'setup', deck, loading: '正在准备 PPT 导出…', error: null })
+    try {
+      await workspace.run(async () => {
+        await workspace.flushAll()
+        const pages = orderedPages(deck)
+        if (!pages.length) throw new WorkspaceError('此文件夹没有可导出的画布，请选择其他目录或包含子文件夹')
+        const data = presentationSchema.parse(await native('read_presentation', { projectId: deck.projectId }))
+        const { PowerPointExport } = await import('./pptx')
+        const title = deck.folder.split('/').at(-1) ||
+          workspace.getSnapshot().projects.find((project) => project.id === deck.projectId)?.name || '项目画布'
+        const output = new PowerPointExport(title)
+        for (const [index, path] of pages.entries()) {
+          this.set({ phase: 'setup', deck, loading: `正在导出第 ${index + 1} / ${pages.length} 页`, error: null })
+          try {
+            output.add(await renderSlideImage(deck.projectId, path, data.areas[path]))
+          } catch (error) {
+            throw new WorkspaceError(`无法导出 ${path}：${message(error)}`)
+          }
+        }
+        this.set({ phase: 'setup', deck, loading: '正在生成 PPT 文件…', error: null })
+        const blob = await output.write()
+        if (blob.size > 64 * 1024 * 1024) throw new WorkspaceError('PPT 超过 64 MB，请拆分目录后导出')
+        let notice: string
+        if (isTauri()) {
+          const result = z.union([z.object({ cancelled: z.literal(true) }), z.object({ path: z.string() })]).parse(
+            await native('export_presentation', { name: `${title}.pptx`, bytes: Array.from(new Uint8Array(await blob.arrayBuffer())) }),
+          )
+          notice = 'cancelled' in result ? '已取消导出 PPT' : `已导出 ${pages.length} 页：${result.path}`
+        } else {
+          const url = URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.href = url
+          link.download = `${title}.pptx`
+          document.body.append(link)
+          link.click()
+          link.remove()
+          setTimeout(() => URL.revokeObjectURL(url), 60_000)
+          notice = `已下载 ${pages.length} 页 PPT`
+        }
+        this.set({ phase: 'setup', deck, loading: null, error: null, notice })
+      })
+    } catch (error) {
+      this.set({ phase: 'setup', deck, loading: null, error: message(error) })
     }
   }
   go(index: number) {
